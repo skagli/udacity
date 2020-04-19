@@ -1,0 +1,88 @@
+# Advanced Lane Finding Project
+
+## Camera Calibration
+The code for this step is contained in cell 3, function `calibrateCamera()`.  
+
+I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
+
+I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.
+
+### Pipeline
+#### 1. Distortion Correction
+
+The source image `img` is converted into the destination image `goodimg` using the function:
+`goodimg = cv2.undistort(img, mtx, dist, None, mtx)`
+
+Here is an example of undistorted image:
+![alt text](undist.jpg)
+
+#### 2. Thresholding
+
+The corrected image `goodimg` is processed in the function `edge_detect()` to detect edges by:
+1. Magnitude thresholding - `mag_threshold(goodimg, sobel_kernel=7, thresh=(30,100))`
+2. Color thresholding - `color_threshold(goodimg, (100, 250))`
+
+The result of combined magnitude and color thresholding is:
+![alt text](binary.jpg)
+
+*Optimization:* If the lane boundaries have been detected in an earlier frame, edge detection can be performed only along these previously deteced lane boundaries. To do this:-
+1.`goodimg` is persective transformed prior to edge detection (because the fitting polynomial is applicable on the transformed image and not the original image).
+2. Transformed image is sampled along the lane boundaries by a 200-by-100 window.
+3. Magnitude and color thresholding is applied only on these smaller matrices. The result of thresholding is a list of 200-by-100 matricies.
+4. A composite binary image is formed by pasting these 200-by-100 images along the lane boundaries.
+
+The final binary image need not be perpective transformed again.
+
+#### 3. Perspective Transform
+
+The transform matrix `M` and inverse transform matrix `invM` are computed in cell 4 in the function `perspective_transform()`.
+The source and destination coordinates are manually obtained using the following image:
+
+![alt text](get_perspective.jpg)
+
+To get these:
+``` source coordinates     : [600, 450], [720, 450], [1200, 720], [250, 720]
+    destination coordinates: [200,0], [1200,0], [1200, 720], [200, 720]
+```
+
+Perspective trasform is done in cell 8 in the function `find_lanes()` by a call to `cv2.warpPerspective()`.
+The result of the transformation was verified in the below image:
+
+![alt text](perspective.jpg)
+
+#### 4. Lane fitting
+
+Lane pixels are fitted in the `find_lane_pixels()` function in cell 5 by a call to `np.polyfit(y, x, 2)`.
+2nd order polynomial is used. `y` and `x` coordinates of the lane pixels are found using a sliding window in the function `find_lane_pixels()` in the same cell.
+
+![alt text]('fitting.jpg')
+
+#### 5. Radius of Curvature and Position
+
+In cell 6, the function `measure_curvature_real()` evaluates the radius of curvature as follows:
+If ```x = Ay^2 + By + C``` in pixel space, then the radius of curvature, R is:
+``` R = ((1 + (2A'y'+B')^2)^1.5) / |2A'|```
+where ```A' = (mx/my^2) A, B' = (mx/my)B, y' = my * y and mx and my are pixel/m scaling factors```
+
+The final value of radius of curvature is the mean of the left and right radii of curvature.
+
+The vehicle position is computed in cell 8 within the function `find_lanes()` as follows:
+
+``` position = (left lane base w.r.t base midpoint) + (right lane base w.r.t base midpoint)```
+
+#### 6. Display Detected Lane
+
+In cell 7, the function `make_overlay()` prepares the final image thus:
+1. Make a list of left and right lane coordinates by pairing the `bestx` attribute of the Line() class with corresponding y-axis coordinates. 
+2. Make a mask polygon using `cv2.fillPoly()`.
+3. Transform the mask onto the road surface using `cv2.warpPerspective()` with `invM` as the transform matrix.
+
+Finally, in cell 8, `find_lanes()` uses `cv2.addWeighted()` to superimpose the mask on the original image to produce an image with the detected lane highlighted.
+
+![alt text]('lanes.jpg')
+
+### Discussion
+
+My approach still suffers from :
+1. manual selection of the trapezoidal area of interest. Due to this, the algorithm performs poorly if the pitch of the camera changes or if the road has sharp bends.
+2. I am not using the lane marking colors and patterns, just going by edge detection which is susceptible to be mislead by patches on the road. The later to some degree is alleviated by windowed search along previously detected lane boundaries.
