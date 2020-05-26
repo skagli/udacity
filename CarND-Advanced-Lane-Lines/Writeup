@@ -14,7 +14,7 @@ The source image `img` is converted into the destination image `goodimg` using t
 `goodimg = cv2.undistort(img, mtx, dist, None, mtx)`
 
 Here is an example of undistorted image:
-![alt text](undist.jpg)
+![Undistorted](undist.jpg)
 
 #### 2. Thresholding
 
@@ -23,7 +23,7 @@ The corrected image `goodimg` is processed in the function `edge_detect()` to de
 2. Color thresholding - `color_threshold(goodimg, (100, 250))`
 
 The result of combined magnitude and color thresholding is:
-![alt text](binary.jpg)
+![Binary Mask](binary.jpg)
 
 *Optimization:* If the lane boundaries have been detected in an earlier frame, edge detection can be performed only along these previously deteced lane boundaries. To do this:-
 1.`goodimg` is persective transformed prior to edge detection (because the fitting polynomial is applicable on the transformed image and not the original image).
@@ -38,7 +38,7 @@ The final binary image need not be perpective transformed again.
 The transform matrix `M` and inverse transform matrix `invM` are computed in cell 4 in the function `perspective_transform()`.
 The source and destination coordinates are manually obtained using the following image:
 
-![alt text](get_perspective.jpg)
+![Find Perspective](get_perspective.jpg)
 
 To get these:
 ``` source coordinates     : [600, 450], [720, 450], [1200, 720], [250, 720]
@@ -48,14 +48,14 @@ To get these:
 Perspective trasform is done in cell 8 in the function `find_lanes()` by a call to `cv2.warpPerspective()`.
 The result of the transformation was verified in the below image:
 
-![alt text](perspective.jpg)
+![Perspective Transform](perspective.jpg)
 
 #### 4. Lane fitting
 
 Lane pixels are fitted in the `find_lane_pixels()` function in cell 5 by a call to `np.polyfit(y, x, 2)`.
 2nd order polynomial is used. `y` and `x` coordinates of the lane pixels are found using a sliding window in the function `find_lane_pixels()` in the same cell.
 
-![alt text]('fitting.jpg')
+![Sliding Windows]('fitting.jpg')
 
 #### 5. Radius of Curvature and Position
 
@@ -79,10 +79,10 @@ In cell 7, the function `make_overlay()` prepares the final image thus:
 
 Finally, in cell 8, `find_lanes()` uses `cv2.addWeighted()` to superimpose the mask on the original image to produce an image with the detected lane highlighted.
 
-![alt text]('lanes.jpg')
+![Detected Lane]('lanes.jpg')
 
 ### Discussion
 
 My approach still suffers from :
-1. manual selection of the trapezoidal area of interest. Due to this, the algorithm performs poorly if the pitch of the camera changes or if the road has sharp bends.
+1. If a pitch estimation is incorporated the results can be immune to pitch variations in the image.
 2. I am not using the lane marking colors and patterns, just going by edge detection which is susceptible to be mislead by patches on the road. The later to some degree is alleviated by windowed search along previously detected lane boundaries.
